@@ -1,6 +1,6 @@
 $(shell rm -f parsetab.py *.so *.pyc _*.py)
 BENCHMARKS=$(wildcard *.py)
-COMPILERS=python pythran parakeet
+COMPILERS=python pythran parakeet pypy numba
 
 export OMP_NUM_THREADS=1
 
@@ -19,6 +19,11 @@ python-%.timing:%.py
 	@printf '$* python: '
 	@python -m timeit -s "$(call setup,$<); from $* import $*" "$(call run, $<)"
 
+pypysetup=`grep -E '\#setup: ' $(1) | sed -e 's/\#setup: //' -e 's/numpy/numpypy/g'`
+pypy-%.timing:%.py
+	@printf '$* pypy: '
+	@pypy -m timeit -s "$(call pypysetup,$<); from $* import $*" "$(call run, $<)" || echo unsupported
+
 pythran-%.timing:%.py
 	@pythran $<
 	@printf '$* pythran: '
@@ -29,7 +34,13 @@ pythran-%.timing:%.py
 parakeet-%.timing:%.py
 	@sed -e 's/def $*/import parakeet\n@parakeet.jit\ndef $*/' $< > _$<
 	@printf '$* parakeet: '
-	@python -m timeit -s "$(call setup,$<); from _$* import $*" "$(call run, $<)" || echo nothing
+	@python -m timeit -s "$(call setup,$<); from _$* import $*" "$(call run, $<)" || echo unsupported
+	@rm -f _$<
+
+numba-%.timing:%.py
+	@sed -e 's/def $*/import numba\n@numba.autojit\ndef $*/' $< > _$<
+	@printf '$* numba: '
+	@python -m timeit -s "$(call setup,$<); from _$* import $*" "$(call run, $<)" || echo unsupported
 	@rm -f _$<
 
 clean:
