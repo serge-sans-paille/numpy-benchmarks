@@ -38,7 +38,7 @@ parakeet-%.timing:%.py
 	@rm -f _$<
 
 numba-%.timing:%.py
-	@sed -e 's/def $*/import numba\n@numba.autojit\ndef $*/' $< > _$<
+	@sed -e 's/def /import numba\n@numba.autojit\ndef /' $< > _$<
 	@printf '$* numba: '
 	@python -m timeit -s "$(call setup,$<); from _$* import $*" "$(call run, $<)" || echo unsupported
 	@rm -f _$<
