@@ -14,4 +14,3 @@ eponymous Makefile variables, as in::
 
     make COMPILERS=python\ pythran BENCHMARKS=harris.py\ evolve.py
 
-    

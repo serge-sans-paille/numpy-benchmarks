@@ -2,19 +2,21 @@ $(shell rm -f parsetab.py *.so *.pyc _*.py)
 BENCHMARKS=$(wildcard *.py)
 COMPILERS=python pythran parakeet pypy numba
 
+# prevent any OpenMP based parallelism
 export OMP_NUM_THREADS=1
 
+# do not run the make command in parallel
 .NOTPARALLEL:
 
 setup=`grep -E '\#setup: ' $(1) | sed -e 's/\#setup: //'`
 run=`grep -E '\#run: ' $(1) | sed -e 's/\#run: //'`
 
-all: $(COMPILERS:%=%.bench)
+TARGETS=$(shell for compiler in $(COMPILERS); do for benchmark in $(BENCHMARKS:%.py=%); do printf "$$compiler-$$benchmark.timing " ; done ; done)
 
+all:$(TARGETS)
 
-%.bench:
-	$(MAKE) $(BENCHMARKS:%.py=$*-%.timing)
-
+# each rule below describes how to run a benchmark for a given compiler
+# the ``timeit'' module is used to gather the results
 python-%.timing:%.py
 	@printf '$* python: '
 	@python -m timeit -s "$(call setup,$<); from $* import $*" "$(call run, $<)"
@@ -26,9 +28,7 @@ pypy-%.timing:%.py
 
 pythran-%.timing:%.py
 	@pythran $<
-	@printf '$* pythran: '
-	@rm -f parsetab.py
-	@python -m timeit -s "$(call setup,$<); from $* import $*" "$(call run, $<)"
+	@(printf '$* pythran: ' && rm -f parsetab.py && python -m timeit -s "$(call setup,$<); from $* import $*" "$(call run, $<)" ) || echo unsupported
 	@rm -f *.so
 
 parakeet-%.timing:%.py
