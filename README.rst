@@ -14,3 +14,7 @@ eponymous Makefile variables, as in::
 
     make COMPILERS=python\ pythran BENCHMARKS=harris.py\ evolve.py
 
+A small utility, provided with the benchmark, ``fmt-bench`` can be used to
+pretty-print the result::
+
+    make | ./fmt-bench
