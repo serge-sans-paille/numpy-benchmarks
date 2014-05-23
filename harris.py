@@ -1,5 +1,5 @@
 #from: parakeet testbed
-#setup: import numpy as np ; M, N = 1920, 1080 ; I = np.random.randn(M,N)
+#setup: import numpy as np ; M, N = 512, 512 ; I = np.random.randn(M,N)
 #run: harris(I)
 
 #pythran export harris(float64[][])

@@ -1,4 +1,4 @@
-#setup: import numpy as np ; a = np.arange(0,1,10e-5)
+#setup: import numpy as np ; N = 10e-7 ; a = np.arange(0,1,N)
 #run: smoothing(a, .4)
 #from: http://www.parakeetpython.com/
 

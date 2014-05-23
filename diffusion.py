@@ -1,5 +1,5 @@
 #setup: import numpy as np;lx,ly=(2**7,2**7);u=np.zeros([lx,ly],dtype=np.double);u[lx/2,ly/2]=1000.0;tempU=np.zeros([lx,ly],dtype=np.double)
-#run: diffusion(u,tempU,500)
+#run: diffusion(u,tempU,100)
 
 #pythran export diffusion(float [][], float [][], int)
 import numpy as np

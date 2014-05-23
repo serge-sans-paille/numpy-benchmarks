@@ -1,8 +1,8 @@
-#setup: N = 100 ; import numpy as np ; x = np.tri(N,N)*0.5 ; w = np.tri(5,5)*0.25
+#setup: N = 200 ; import numpy as np ; x = np.tri(N,N)*0.5 ; w = np.tri(5,5)*0.25
 #run: conv(x,w)
 
 #pythran export conv(float[][], float[][])
-import numpy as np 
+import numpy as np
 
 def clamp(i, offset, maxval):
     j = max(0, i + offset)
@@ -23,5 +23,5 @@ def conv(x, weights):
             for ii in xrange(sw[0]):
                 for jj in xrange(sw[1]):
                     idx = clamp(i,ii-sw[0]/2,sw[0]), clamp(j,jj-sw[0]/2,sw[0])
-                    result[i,j] += x[idx] * weights[ii,jj] 
+                    result[i,j] += x[idx] * weights[ii,jj]
     return result

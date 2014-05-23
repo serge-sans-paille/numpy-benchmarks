@@ -1,6 +1,6 @@
 #from: http://stackoverflow.com/questions/19367488/converting-function-to-numbapro-cuda
-#setup: N = 50 ; import numpy ; a = numpy.random.rand(N,N)
-#run: fdtd(a,20)
+#setup: N = 100 ; import numpy ; a = numpy.random.rand(N,N)
+#run: fdtd(a,40)
 
 #pythran export fdtd(float[][], int)
 import numpy as np

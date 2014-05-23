@@ -1,4 +1,4 @@
-#setup: import numpy as np ; N = 100 ; X, Y = np.random.randn(100,N), np.random.randn(20,N)
+#setup: import numpy as np ; N = 500 ; X, Y = np.random.randn(100,N), np.random.randn(40,N)
 #run: allpairs_distances_loops(X, Y)
 
 #pythran export allpairs_distances_loops(float64[][], float64[][])
