@@ -9,7 +9,7 @@ export OMP_NUM_THREADS=1
 .NOTPARALLEL:
 
 setup=`grep -E '\#setup: ' $(1) | sed -e 's/\#setup: //'`
-run=`grep -E '\#run: ' $(1) | sed -e 's/\#run: //'`
+run=`grep -E '\#run: ' $(1) | sed -e 's/\#run: /res = /'` # note we are storing the result in a variable to avoid counting deallocation time
 
 TARGETS=$(shell for compiler in $(COMPILERS); do for benchmark in $(BENCHMARKS:%.py=%); do printf "$$compiler-$$benchmark.timing " ; done ; done)
 
