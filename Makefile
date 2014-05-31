@@ -27,8 +27,8 @@ pypy-%.timing:%.py
 	@pypy -m timeit -s "$(call pypysetup,$<); from $* import $*" "$(call run, $<)" || echo unsupported
 
 pythran-%.timing:%.py
-	@pythran $<
-	@(printf '$* pythran: ' && rm -f parsetab.py && python -m timeit -s "$(call setup,$<); from $* import $*" "$(call run, $<)" ) || echo unsupported
+	@printf '$* pythran: '
+	@(pythran $< && rm -f parsetab.py && python -m timeit -s "$(call setup,$<); from $* import $*" "$(call run, $<)" ) || echo unsupported
 	@rm -f *.so
 
 parakeet-%.timing:%.py
