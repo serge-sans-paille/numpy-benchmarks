@@ -28,7 +28,7 @@ testcases = sorted(testcases)
 table = [[''] + compilers]
 for testcase in testcases:
     times = [records[compiler][testcase] for compiler in compilers]
-    mtime = min(time for time in times if time)
+    mtime = min([time for time in times if time] or [0.])
     ftimes = [(str(time) if time != mtime else '*{}*'.format(time)) for time in times]
     table.append([testcase] + ftimes)
 
