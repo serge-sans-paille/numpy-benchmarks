@@ -2,23 +2,16 @@
 import sys
 import re
 
-def to_msec(value, unit):
-    conversion = {'sec': 1000., 'msec': 1., 'usec': .001}
-    return float(value) * conversion[unit]
-
 records = dict()
 testcases = set()
 compilers = set()
 for line in sys.stdin:
-    match = re.match(r'(\w+)\s(\w+): \d+ loops, best of \d+: (\d+\.?\d*) (\w+) per loop', line.strip())
-    if match:
-        testcase, compiler, duration, units = match.groups()
-    else:
-        match = re.match(r'(\w+)\s(\w+): .*', line)
-        assert match, line
-        testcase, compiler = match.groups()
-        duration, units = 0, 'msec'
-    records.setdefault(compiler, dict())[testcase] = to_msec(duration, units)
+    try:
+        testcase, compiler, best, average, _ = line.split()
+    except:
+        testcase, compiler, _ = line.split()
+        best = average = 0
+    records.setdefault(compiler, dict())[testcase] = int(average)
     testcases.add(testcase)
     compilers.add(compiler)
 
