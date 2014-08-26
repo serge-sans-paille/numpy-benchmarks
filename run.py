@@ -95,7 +95,7 @@ def run(filenames, extractors):
                 setup, run, content = e(filename)
                 open(where, 'w').write(content)
                 e.compile(where)
-                shelllines.append('printf "{function} {extractor} " && PYTHONPATH=.. python -m benchit -r 11 -s "{setup}; from {module} import {function}" "{run}" 2>/dev/null || echo unsupported'.format(setup=setup, module=tmpmodule, function=function, run=run, extractor=extractor.name))
+                shelllines.append('printf "{function} {extractor} " && PYTHONPATH=..:$PYTHONPATH python -m benchit -r 11 -s "{setup}; from {module} import {function}" "{run}" 2>/dev/null || echo unsupported'.format(setup=setup, module=tmpmodule, function=function, run=run, extractor=extractor.name))
             except:
                 shelllines.append('echo "{function} {extractor} unsupported"'.format(function=function, extractor=extractor.name))
 
