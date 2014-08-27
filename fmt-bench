@@ -1,34 +1,168 @@
 #!/usr/bin/env python
+# -*- coding: utf8 -*-
 import sys
 import re
-
-records = dict()
-testcases = set()
-compilers = set()
-for line in sys.stdin:
-    try:
-        testcase, compiler, best, average, _ = line.split()
-    except:
-        testcase, compiler, _ = line.split()
-        best = average = 0
-    records.setdefault(compiler, dict())[testcase] = int(average)
-    testcases.add(testcase)
-    compilers.add(compiler)
-
-compilers = sorted(compilers)
-testcases = sorted(testcases)
-
-table = [[''] + compilers]
-for testcase in testcases:
-    times = [records[compiler][testcase] for compiler in compilers]
-    mtime = min([time for time in times if time] or [0.])
-    ftimes = [(str(time) if time != mtime else '*{}*'.format(time)) for time in times]
-    table.append([testcase] + ftimes)
-
-cols = zip(*table)
-col_widths = [max(len(value) for value in col) for col in cols]
-format = ' '.join(['%%%ds' % width for width in col_widths ])
-for row in table:
-    print format % tuple(row)
+import argparse
 
 
+def read_data(normalize='Python'):
+    averages = dict()
+    testcases = set()
+    compilers = set()
+    for line in sys.stdin:
+        try:
+            testcase, compiler, best, average, _ = line.split()
+        except:
+            testcase, compiler, _ = line.split()
+            best = average = 0
+        averages.setdefault(compiler, dict())[testcase] = int(average)
+        testcases.add(testcase)
+        compilers.add(compiler)
+
+    compilers = sorted(compilers)
+    testcases = sorted(testcases)
+
+    # eventually normalize against Python
+    if normalize:
+        assert normalize in compilers, "normalize against an existing compiler"
+        for testcase in testcases:
+            ref = float(averages[normalize][testcase])
+            for compiler in compilers:
+                average = averages[compiler][testcase]
+                if average:
+                    averages[compiler][testcase] = ref / average
+
+    return averages, testcases, compilers
+
+
+def dump_rst(averages, testcases, compilers):
+    table = [[''] + compilers]
+    for testcase in testcases:
+        times = [averages[compiler][testcase] for compiler in compilers]
+        mtime = min([time for time in times if time] or [0.])
+        ftimes = [(str(time) if time != mtime else '*{}*'.format(time))
+                  for time in times]
+        table.append([testcase] + ftimes)
+
+    cols = zip(*table)
+    col_widths = [max(len(value) for value in col) for col in cols]
+    format = ' '.join(['%%%ds' % width for width in col_widths])
+    for row in table:
+        print format % tuple(row)
+
+
+def dump_tex(averages, testcases, compilers):
+    table = []
+    for testcase in testcases:
+        times = [averages[compiler][testcase] for compiler in compilers]
+        mtime = min([time for time in times if time] or [0.])
+        ftimes = [(str(time)
+                   if time != mtime
+                   else r'\textbf{{{}}}'.format(time))
+                  for time in times]
+        table.append([testcase.replace('_', r'\_')] + ftimes)
+
+    cols = zip(*table)
+    col_widths = [max(len(value) for value in col) for col in cols]
+    format = ' & '.join(['%%%ds' % width for width in col_widths])
+
+    print r'\begin{tabular}{|l||' + 'c|' * len(compilers) + '}'
+    print r'\hline'
+    print r'&', ' & '.join(compilers), r'\\'
+    print r'\hline'
+    print r'\hline'
+    for row in table:
+        print format % tuple(row), r'\\'
+    print r'\hline'
+    print r'\end{tabular}'
+
+
+def dump_plot(averages, testcases, compilers,
+              flavor='png', normalize='Python'):
+    import matplotlib as mpl
+    import matplotlib.pyplot as plt
+    import numpy as np
+
+    colors = 'rgbkymc'
+    assert len(colors) >= len(compilers)
+
+    fig = plt.figure()
+    ax = fig.add_subplot(1, 1, 1)
+
+    ind = np.arange(len(testcases))
+    width = 1. / (2 + len(compilers))
+
+    # fill the bars
+    rects = []
+    for i, compiler in enumerate(compilers):
+        try:
+            bar = ax.bar(ind + i * width,
+                         [averages[compiler][testcase]
+                          for testcase in testcases],
+                         width,
+                         color=colors[i],
+                         log=True,
+                         )
+            rects.append(bar)
+        except ValueError:
+            pass
+
+    # the bar captions
+    ax.set_xticks(ind+width)
+    xtickNames = ax.set_xticklabels(testcases)
+    plt.setp(xtickNames, rotation=45, fontsize=10)
+
+    # the legends
+    ax.legend([rect[0] for rect in rects],
+              compilers,
+              ncol=2,
+              prop={'size': 10}
+              )
+    if normalize:
+        ax.set_ylabel(u"Speedup with respect to " + normalize)
+    else:
+        ax.set_ylabel(u"Average execution time (µs)")
+
+    # plt.show()
+    if len(testcases) == 1:
+        basename = testcases[0]
+    else:
+        basename = 'benchmarks'
+    fullname = basename + '.' + flavor
+    plt.tight_layout()
+    plt.savefig(fullname)
+    print fullname, 'generated'
+
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-t', '--type', default='rst',
+                        help='output format (default=rst)')
+    parser.add_argument('--logscale', action='store_true',
+                        help='use logarithmic scale (default=False)')
+    parser.add_argument('--normalize', type=str, default="",
+                        help='normalize against given result (default="")')
+    parser.add_argument('--split', action='store_true',
+                        help='split output in multiple parts')
+    args = parser.parse_args()
+
+    options = {'normalize': args.normalize}
+    averages, testcases, compilers = read_data(**options)
+
+    if args.split:
+        def dumper(handler, **kwargs):
+            for testcase in testcases:
+                handler({c: {testcase: averages[c][testcase]}
+                         for c in compilers},
+                        [testcase],
+                        compilers,
+                        **kwargs)
+    else:
+        def dumper(handler, **kwargs):
+            handler(averages, testcases, compilers, **kwargs)
+    if args.type == 'rst':
+        dumper(dump_rst)
+    elif args.type == 'tex':
+        dumper(dump_tex)
+    else:
+        dumper(dump_plot, flavor=args.type, normalize=args.normalize)

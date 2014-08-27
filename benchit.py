@@ -6,6 +6,7 @@ from timeit import default_timer, default_repeat, Timer
 import numpy
 import sys
 
+
 def main(args=None):
     """Main program, used when run as a script.
 
@@ -32,7 +33,7 @@ def main(args=None):
         return 2
     timer = default_timer
     stmt = "\n".join(args) or "pass"
-    number = 0 # auto-determine
+    number = 0  # auto-determine
     setup = []
     repeat = default_repeat
     verbose = 0

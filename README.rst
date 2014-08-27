@@ -14,6 +14,6 @@ ad hoc arguments , as in::
     python run.py -t python -t pythran benchmarks/harris.py benchmarks/evolve.py
 
 A small utility, provided with the benchmark, ``fmt-bench`` can be used to
-pretty-print the result::
+pretty-print the result in various format (see ``fmt-bench --help``::
 
     python run.py | ./fmt-bench
