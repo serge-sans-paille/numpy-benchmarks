@@ -77,7 +77,7 @@ class NumbaExtractor(ParakeetExtractor):
     def __init__(self):
         super(NumbaExtractor, self).__init__()
         self.extra_import = 'import numba\n'
-        self.decorator = '@numba.autojit\n'
+        self.decorator = '@numba.jit(nopython=True)\n'
 
 
 class HopeExtractor(ParakeetExtractor):
