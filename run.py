@@ -80,6 +80,16 @@ class NumbaExtractor(ParakeetExtractor):
         self.decorator = '@numba.autojit\n'
 
 
+class HopeExtractor(ParakeetExtractor):
+
+    name = 'hope'
+
+    def __init__(self):
+        super(HopeExtractor, self).__init__()
+        self.extra_import = 'import hope\n'
+        self.decorator = '@hope.jit\n'
+
+
 def run(filenames, extractors):
     location = tempfile.mkdtemp(prefix='rundir_', dir='.')
     shelllines = []
@@ -117,7 +127,7 @@ if __name__ == '__main__':
     parser.add_argument('benchmarks', nargs='*',
                         help='benchmark to run, default is benchmarks/*',
                         default=glob.glob('benchmarks/*.py'))
-    default_targets=['python', 'pythran', 'parakeet', 'numba', 'pypy']
+    default_targets=['python', 'pythran', 'parakeet', 'numba', 'pypy', 'hope']
     parser.add_argument('-t', action='append', dest='targets', metavar='TARGET',
                         help='target compilers to use, default is %s' % ', '.join(default_targets))
     args = parser.parse_args(sys.argv[1:])
