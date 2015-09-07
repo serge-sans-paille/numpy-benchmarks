@@ -9,9 +9,10 @@ class PythonExtractor(object):
 
     name = 'Python'
 
-    def __init__(self):
+    def __init__(self, output_dir):
         self.re_setup = re.compile('^#setup: (.*)$')
         self.re_run = re.compile('^#run: (.*)$')
+        self.output_dir = output_dir
 
     def process_lines(self, filename, lines):
         content = []
@@ -47,16 +48,21 @@ class PythranExtractor(PythonExtractor):
     name = 'pythran'
 
     def compile(self, filename):
-        import pythran
-        pythran.compile_pythranfile(filename)
+        import pythran, os
+        os.chdir(self.output_dir)
+        try:
+            pythran.compile_pythranfile(os.path.join('..', filename))
+        finally:
+            os.chdir('..')
+
 
 
 class ParakeetExtractor(PythonExtractor):
 
     name = 'parakeet'
 
-    def __init__(self):
-        super(ParakeetExtractor, self).__init__()
+    def __init__(self, output_dir):
+        super(ParakeetExtractor, self).__init__(output_dir)
         self.extra_import = 'import parakeet\n'
         self.decorator = '@parakeet.jit\n'
 
@@ -74,8 +80,8 @@ class NumbaExtractor(ParakeetExtractor):
 
     name = 'numba'
 
-    def __init__(self):
-        super(NumbaExtractor, self).__init__()
+    def __init__(self, output_dir):
+        super(NumbaExtractor, self).__init__(output_dir)
         self.extra_import = 'import numba\n'
         self.decorator = '@numba.jit(nopython=True)\n'
 
@@ -84,8 +90,8 @@ class HopeExtractor(ParakeetExtractor):
 
     name = 'hope'
 
-    def __init__(self):
-        super(HopeExtractor, self).__init__()
+    def __init__(self, output_dir):
+        super(HopeExtractor, self).__init__(output_dir)
         self.extra_import = 'import hope\n'
         self.decorator = '@hope.jit\n'
 
@@ -94,7 +100,7 @@ def run(filenames, extractors):
     location = tempfile.mkdtemp(prefix='rundir_', dir='.')
     shelllines = []
     for extractor in extractors:
-        e = extractor()
+        e = extractor(location)
         for filename in filenames:
             basename = os.path.basename(filename)
             function, _ = os.path.splitext(basename)
