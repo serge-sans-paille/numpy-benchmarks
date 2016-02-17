@@ -17,3 +17,18 @@ A small utility, provided with the benchmark, ``fmt-bench`` can be used to
 pretty-print the result in various format (see ``fmt-bench --help``::
 
     python run.py | ./fmt-bench
+
+
+Example
+=======
+
+    $  python run.py -t python benchmarks/harris.py
+    harris Python 5431 5454 14
+
+What does it mean? The code from ``benchmarks/harris.py`` was run through
+``timeit`` using the ``#setup`` and ``#run`` code. It outputs (in that order
+and in nanoseconds):
+
+1. the **best** execution time among all runs;
+2. the **average** execution time of the runs;
+3. the **standard deviation** of the runs.
