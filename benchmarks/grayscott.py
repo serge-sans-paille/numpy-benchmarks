@@ -12,8 +12,8 @@ def grayscott(counts, Du, Dv, F, k):
 
     r = 20
     u[:] = 1.0
-    U[n/2-r:n/2+r,n/2-r:n/2+r] = 0.50
-    V[n/2-r:n/2+r,n/2-r:n/2+r] = 0.25
+    U[n//2-r:n//2+r,n//2-r:n//2+r] = 0.50
+    V[n//2-r:n//2+r,n//2-r:n//2+r] = 0.25
     u += 0.15*np.random.random((n,n))
     v += 0.15*np.random.random((n,n))
 
