@@ -5,6 +5,7 @@ An adaptation from timeit that outputs some extra statistical informations
 from timeit import default_timer, default_repeat, Timer
 import numpy
 import sys
+import time
 
 
 def main(args=None):
@@ -20,16 +21,16 @@ def main(args=None):
     stderr and the return value is 1.  Exceptions at other times
     (including the template compilation) are not caught.
     """
-    if args is None:
+    if not args:
         args = sys.argv[1:]
     import getopt
     try:
-        opts, args = getopt.getopt(args, "n:s:r:tcvh",
-                                   ["number=", "setup=", "repeat=",
-                                    "time", "clock", "verbose", "help"])
-    except getopt.error, err:
-        print err
-        print "use -h/--help for command line help"
+        opts, args = getopt.getopt(args, 'n:s:r:tcvh',
+                                   ['number=', 'setup=', 'repeat=',
+                                    'time', 'clock', 'verbose', 'help'])
+    except getopt.error as err:
+        print(err)
+        print("use -h/--help for command line help")
         return 2
     timer = default_timer
     stmt = "\n".join(args) or "pass"
@@ -56,7 +57,7 @@ def main(args=None):
                 precision += 1
             verbose += 1
         if o in ("-h", "--help"):
-            print __doc__,
+            print(__doc__)
             return 0
     setup = "\n".join(setup) or "pass"
     # Include the current directory, so that local imports work (sys.path
@@ -75,7 +76,7 @@ def main(args=None):
                 t.print_exc()
                 return 1
             if verbose:
-                print "%d loops -> %.*g secs" % (number, precision, x)
+                print("%d loops -> %.*g secs" % (number, precision, x))
             if x >= 0.2:
                 break
     try:
@@ -84,13 +85,14 @@ def main(args=None):
         t.print_exc()
         return 1
     if verbose:
-        print "raw times:", " ".join(["%.*g" % (precision, x) for x in r])
+        print("raw times:", " ".join(["%.*g" % (precision, x) for x in r]))
     r = [int(x * 1e6 / number) for x in r]
     best = min(r)
     average = int(numpy.average(r))
     std = int(numpy.std(r))
 
-    print best, average, std
+    print(best, average, std)
+
 
 if __name__ == "__main__":
     sys.exit(main())

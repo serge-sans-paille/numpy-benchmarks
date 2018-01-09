@@ -1,4 +1,4 @@
-#setup: import numpy ; a = numpy.array([ [i/10., i/10., i/20.] for i in xrange(80)], dtype=numpy.double)
+#setup: import numpy ; a = numpy.array([ [i/10., i/10., i/20.] for i in range(80)], dtype=numpy.double)
 #run: hyantes(0, 0, 90, 90, 1, 100, 80, 80, a)
 
 #pythran export hyantes(float, float, float, float, float, float, int, int, float[][])
