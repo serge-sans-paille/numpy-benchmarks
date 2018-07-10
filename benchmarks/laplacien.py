@@ -1,6 +1,6 @@
 #setup: import numpy as np ; N = 500 ; X = np.random.randn(N,N,3)
 #run: laplacien(X)
-#pythran export laplacien(float64[][][])
+#pythran export laplacien(float64[][][3])
 
 import numpy as np
 def laplacien(image):
