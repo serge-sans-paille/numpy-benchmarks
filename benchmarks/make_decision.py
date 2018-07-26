@@ -1,5 +1,6 @@
 #setup: import numpy as np, random; np.random.seed(0); s=np.random.randn(2**16)+np.random.randn(2**16)*1.j ; sc=np.random.choice(s, 32)
 #run: make_decision(s, sc)
+#from: https://github.com/serge-sans-paille/pythran/issues/801
 
 import numpy as np
 #pythran export make_decision(complex128[], complex128[])
