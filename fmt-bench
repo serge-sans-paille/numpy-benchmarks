@@ -48,7 +48,7 @@ def dump_rst(averages, testcases, compilers):
     col_widths = [max(len(value) for value in col) for col in cols]
     format = ' '.join(['%%%ds' % width for width in col_widths])
     for row in table:
-        print format % tuple(row)
+        print(format % tuple(row))
 
 
 def dump_tex(averages, testcases, compilers):
@@ -66,15 +66,15 @@ def dump_tex(averages, testcases, compilers):
     col_widths = [max(len(value) for value in col) for col in cols]
     format = ' & '.join(['%%%ds' % width for width in col_widths])
 
-    print r'\begin{tabular}{|l||' + 'c|' * len(compilers) + '}'
-    print r'\hline'
-    print r'&', ' & '.join(compilers), r'\\'
-    print r'\hline'
-    print r'\hline'
+    print(r'\begin{tabular}{|l||' + 'c|' * len(compilers) + '}')
+    print(r'\hline')
+    print(r'&', ' & '.join(compilers), r'\\')
+    print(r'\hline')
+    print(r'\hline')
     for row in table:
-        print format % tuple(row), r'\\'
-    print r'\hline'
-    print r'\end{tabular}'
+        print(format % tuple(row), r'\\')
+    print(r'\hline')
+    print(r'\end{tabular}')
 
 
 def dump_plot(averages, testcases, compilers,
@@ -131,7 +131,7 @@ def dump_plot(averages, testcases, compilers,
     fullname = basename + '.' + flavor
     plt.tight_layout()
     plt.savefig(fullname)
-    print fullname, 'generated'
+    print(fullname, 'generated')
 
 
 if __name__ == '__main__':
