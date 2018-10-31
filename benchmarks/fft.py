@@ -1,4 +1,4 @@
-#setup: N = 2**10 ; import numpy ; a = numpy.array(numpy.random.rand(N), dtype=complex)
+#setup: N = 2**10 ; import numpy as np ; np.random.seed(0); a = np.array(np.random.rand(N), dtype=complex)
 #run: fft(a)
 
 #pythran export fft(complex [])
@@ -12,7 +12,7 @@ def fft(x):
    e=fft(x[::2])
    o=fft(x[1::2])
    M=N//2
-   l=[ e[k] + o[k]*math.e**(-2j*math.pi*k/N) for k in range(M) ]
-   r=[ e[k] - o[k]*math.e**(-2j*math.pi*k/N) for k in range(M) ]
+   l=e + o * math.e**(-2j*math.pi*np.arange(M)/N)
+   r=e - o * math.e**(-2j*math.pi*np.arange(M)/N)
    return np.array(l+r)
 

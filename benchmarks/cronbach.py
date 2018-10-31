@@ -1,6 +1,6 @@
 #from: http://stackoverflow.com/questions/20799403/improving-performance-of-cronbach-alpha-code-python-numpy
 #pythran export cronbach(float [][])
-#setup: import numpy as np ; N = 600 ; items = np.random.rand(N,N)
+#setup: import numpy as np ; np.random.seed(0); N = 600 ; items = np.random.rand(N,N)
 #run: cronbach(items)
 def cronbach(itemscores):
     itemvars = itemscores.var(axis=1, ddof=1)
