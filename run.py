@@ -127,7 +127,7 @@ def run(filenames, extractors):
                 shelllines.append('echo "{function} {extractor} unsupported"'.format(function=function, extractor=extractor.name))
 
     # random.shuffle(shelllines)
-    shelllines = ['#!/bin/sh', 'cp ./xbench/xbench.so ./{}'.format(location), 'export OMP_NUM_THREADS=1', 'cd `dirname $0`'] + shelllines
+    shelllines = ['#!/bin/sh', 'cp ./xbench/xbench.*so ./{}'.format(location), 'export OMP_NUM_THREADS=1', 'cd `dirname $0`'] + shelllines
 
     shellscript = os.path.join(location, 'run.sh')
     open(shellscript, 'w').write('\n'.join(shelllines))

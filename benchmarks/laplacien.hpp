@@ -31,9 +31,13 @@ namespace xt
                                       view(image, range(1, -1), range(0, -2)) - view(image, range(1, -1), range(2, xnone()))
                           );
             
-            auto valmax = xt::amax(out_image, xt::evaluation_strategy::immediate())();
+            auto valmax = xt::amax(out_image, xt::evaluation_strategy::immediate)();
             valmax = std::max(1., valmax) + 1e-9;
+#if 0
             out_image /= valmax;
+#else
+            out_image = out_image / valmax;
+#endif
             return out_image;
         }
 
@@ -45,7 +49,7 @@ namespace xt
                                       strided_view(image, {range(1, -1), range(0, -2)}) - strided_view(image, {range(1, -1), range(2, xnone())})
                           );
             
-            auto valmax = xt::amax(out_image, xt::evaluation_strategy::immediate())();
+            auto valmax = xt::amax(out_image, xt::evaluation_strategy::immediate)();
             valmax = std::max(1., valmax) + 1e-9;
             out_image /= valmax;
             return out_image;
@@ -68,7 +72,7 @@ namespace xt
                     }
                 }
             }
-            auto valmax = xt::amax(out_image, xt::evaluation_strategy::immediate())();
+            auto valmax = xt::amax(out_image, xt::evaluation_strategy::immediate)();
             valmax = std::max(1., valmax) + 1e-9;
             out_image /= valmax;
             return out_image;
