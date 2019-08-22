@@ -1,0 +1,13 @@
+sudo: false
+language: python
+addons:
+    apt:
+        sources:
+            - ubuntu-toolchain-r-test
+        packages:
+            - libatlas-base-dev
+python:
+  - "3.7"
+install: pip install pythran numba
+script: python run.py -tpython -tpythran -tnumba
+
