@@ -1,0 +1,7 @@
+numpy
+numba
+pythran
+hope
+cmake
+pytest
+matplotlib

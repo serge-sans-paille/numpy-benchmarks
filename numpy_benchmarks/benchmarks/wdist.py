@@ -1,5 +1,5 @@
 #from: http://stackoverflow.com/questions/19277244/fast-weighted-euclidean-distance-between-points-in-arrays/19277334#19277334
-#setup: import numpy as np ; N = 70 ; A = np.random.rand(N,N) ; B =  np.random.rand(N,N) ; W = np.random.rand(N,N)
+#setup: import numpy as np ; np.random.seed(0); N = 70 ; A = np.random.rand(N,N) ; B =  np.random.rand(N,N) ; W = np.random.rand(N,N)
 #run: wdist(A,B,W)
 
 #pythran export wdist(float64 [][], float64 [][], float64[][])

@@ -1,6 +1,6 @@
 #from: http://stackoverflow.com/questions/14553331/how-to-improve-numpy-performance-in-this-short-code
 #pythran export repeating(float[], int)
-#setup: import numpy as np ; a = np.random.rand(10000)
+#setup: import numpy as np ; np.random.seed(0); a = np.random.rand(10000)
 #run: repeating(a, 20)
 
 import numpy as np

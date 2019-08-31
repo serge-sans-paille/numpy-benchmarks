@@ -1,5 +1,5 @@
 #from: http://wiki.scipy.org/Cookbook/Theoretical_Ecology/Hastings_and_Powell
-#setup: import numpy as np ; y = np.random.rand(3) ; args = np.random.rand(7)
+#setup: import numpy as np ; np.random.seed(0); y = np.random.rand(3) ; args = np.random.rand(7)
 #run: hasting(y, *args)
 
 #pythran export hasting(float [], float, float, float, float, float, float, float)
