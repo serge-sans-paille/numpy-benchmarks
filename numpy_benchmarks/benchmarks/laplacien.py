@@ -1,4 +1,4 @@
-#setup: import numpy as np ; N = 500 ; X = np.random.randn(N,N,3)
+#setup: import numpy as np ; np.random.seed(0); N = 500 ; X = np.random.randn(N,N,3)
 #run: laplacien(X)
 #pythran export laplacien(float64[][][3])
 

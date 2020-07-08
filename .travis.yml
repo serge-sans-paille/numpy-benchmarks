@@ -5,17 +5,22 @@ addons:
         sources:
             - ubuntu-toolchain-r-test
         packages:
-            - libatlas-base-dev
+            - libopenblas-dev
+
 python:
   - "3.6"
   - "3.7"
+
+install:
+    - pip install -r requirements.txt
+    - python setup.py install
+
 script:
-    - python ./np-bench setup
-    - python ./np-bench run > all.log
-    - python ./np-bench run -tpythran > pythran.log
-    - python ./np-bench run -tnumba benchmarks/arc_distance.py > numba.log
-    - python ./np-bench format -t png all.log
-    - python ./np-bench format -t tex pythran.log
-    - python ./np-bench format -t rst numba.log
-
-
+    - np-bench list
+    - np-bench run -o all.log
+    - np-bench run -tpythran > pythran.log
+    - np-bench run -tnumba benchmarks/arc_distance.py -o numba.log
+    - np-bench format -t png all.log
+    - np-bench format -t tex pythran.log
+    - np-bench format -t rst numba.log
+    - sort all.log

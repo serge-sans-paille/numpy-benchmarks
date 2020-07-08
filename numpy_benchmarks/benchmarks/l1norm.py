@@ -1,5 +1,5 @@
 #from: https://stackoverflow.com/questions/55854611/efficient-way-of-vectorizing-distance-calculation/55877642#55877642
-#setup: import numpy as np ; N = 80; x = np.random.rand(N,N); y = np.random.rand(N,N)
+#setup: import numpy as np ; np.random.seed(0); N = 80; x = np.random.rand(N,N); y = np.random.rand(N,N)
 #run: l1norm(x, y)
 
 #pythran export l1norm(float64[][], float64[:,:])

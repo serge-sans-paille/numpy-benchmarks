@@ -1,0 +1,680 @@
+#!/home/sguelton/.venvs/tmp/bin/python
+import re
+import sys
+import tempfile
+import os.path
+import random
+import stat
+import glob
+import shutil
+import subprocess
+import textwrap
+
+import numpy_benchmarks
+
+npb_prefix = 'np_bench_rundir_'
+
+###############################################################################
+# Run command
+
+class PythonExtractor(object):
+    '''
+    Generate test case for Python from run and setup comment in a benchmark
+    '''
+
+    name = 'python'
+
+    def __init__(self, output_dir):
+        self.re_setup = re.compile('^#setup: (.*)$')
+        self.re_run = re.compile('^#run: (.*)$')
+        self.output_dir = output_dir
+
+    def process_lines(self, filename, lines):
+        content = []
+        for line in lines:
+            m = self.re_setup.match(line)
+            if m:
+                setup = m.group(1)
+            m = self.re_run.match(line)
+            if m:
+                run = 'res = ' + m.group(1)
+            content.append(line)
+        try:
+            return setup, run, content
+        except NameError as n:
+            raise RuntimeError('%s has invalid header' % filename)
+
+    def __call__(self, where, filename):
+        with open(filename) as fd:
+            s, r, c = self.process_lines(filename, fd)
+            with open(where, 'w') as dest:
+                dest.write(''.join(c))
+            return s, r
+
+    def compile(self, filename, verbose):
+        pass
+
+
+class PythranExtractor(PythonExtractor):
+    '''
+    Generate test case for Pythran from run and setup comment in a benchmark
+
+    Handle the conversion from python to shared library from #pythran comment.
+    '''
+
+    name = 'pythran'
+
+    def compile(self, filename, verbose):
+        import pythran, os, logging
+        if verbose:
+            pythran.toolchain.logger.setLevel(logging.INFO)
+        cwd = os.getcwd()
+        os.chdir(self.output_dir)
+        try:
+            pythran.compile_pythranfile(os.path.join(cwd, filename))
+        finally:
+            os.chdir(cwd)
+
+
+class JitExtractor(PythonExtractor):
+    '''
+    Helper class for jit-based extractor
+    '''
+
+    def process_lines(self, filename, lines):
+        s, r, c = super(JitExtractor, self).process_lines(filename, lines)
+        lines = [self.extra_import]
+        for line in c:
+            if line.startswith('def '):
+                lines.append(self.decorator)
+            lines.append(line)
+        return s, r, lines
+
+
+class NumbaExtractor(JitExtractor):
+    '''
+    Generate test case for Numba from run and setup comment in a benchmark
+
+    Add a generic @jit to the main kernel.
+    '''
+
+    name = 'numba'
+
+    def __init__(self, output_dir):
+        super(NumbaExtractor, self).__init__(output_dir)
+        self.extra_import = 'import numba\n'
+        self.decorator = '@numba.jit(nopython=True)\n'
+
+
+class HopeExtractor(JitExtractor):
+    '''
+    Generate test case for Hope from run and setup comment in a benchmark
+
+    Add a generic @jit to the main kernel.
+    '''
+
+    name = 'hope'
+
+    def __init__(self, output_dir):
+        super(HopeExtractor, self).__init__(output_dir)
+        self.extra_import = 'import hope\n'
+        self.decorator = '@hope.jit\n'
+
+
+class XtensorExtractor(PythonExtractor):
+    '''
+    Generate test case for xtensor from run and setup comment in a benchmark
+
+    Assumes the existence of a .cpp alongside the .py file
+    '''
+
+    name = 'xtensor'
+
+    def __call__(self, where, filename):
+        res = super().__call__(where, filename)
+        shutil.copy(filename[:-2] + 'cpp', where[:-2] + 'cpp')
+        return res
+
+    def compile(self, filename, verbose):
+        from numpy.distutils.core import setup
+        from numpy.distutils.extension import Extension
+
+        cwd = os.getcwd()
+        os.chdir(self.output_dir)
+
+        kernelname = os.path.basename(filename[:-3])
+        cpp = os.path.join(cwd, filename[:-3] + ".cpp")
+
+        # Numpy can pollute stdout with warning message which should be on stderr
+        old_stdout = sys.stdout
+        try:
+            sys.stdout = sys.stderr
+
+            extension = Extension(kernelname,
+                                  [cpp],
+                                  libraries=["openblas"],
+                                  include_dirs=[os.path.join(sys.prefix,
+                                                             'include')],
+                                  extra_compile_args=['-std=c++14', '-w']
+                                 )
+            script_args = [] if verbose else ['--quiet']
+            script_args.extend(['build_ext', '--inplace'])
+            setup(name=kernelname,
+                  ext_modules=[extension],
+                  script_name='setup.py',
+                  script_args=script_args)
+        finally:
+            sys.stdout = old_stdout
+            os.chdir(cwd)
+
+def run_generator(filenames, extractors, prefix, verbose):
+    location = tempfile.mkdtemp(prefix=npb_prefix)
+    with open(os.path.join(location, 'benchit.py'), 'w') as dst:
+        dst.write(benchit)
+
+    shelllines = []
+    for extractor in extractors:
+        e = extractor(location)
+        for filename in filenames:
+            basename = os.path.basename(filename)
+            function, _ = os.path.splitext(basename)
+            tmpfilename = '_'.join([extractor.name, basename])
+            tmpmodule, _ = os.path.splitext(tmpfilename)
+            where = os.path.join(location, tmpfilename)
+            try:
+                setup, run = e(where, filename)
+                e.compile(where, verbose)
+                shelllines.append(
+                    'printf "{function} {extractor} " '
+                    '&& {python} benchit.py -r 13 -n 50 -s "{setup}; from {module} import {function} ; {run}" "{run}"  '
+                    '|| echo unsupported'.format(
+                        python=sys.executable,
+                        setup=setup,
+                        module=tmpmodule,
+                        function=function,
+                        run=run,
+                        extractor=prefix+extractor.name))
+            except:
+                shelllines.append('echo "{function} {extractor} unsupported"'.format(function=function, extractor=prefix+extractor.name))
+
+    # shuffle to hide locality effects
+    random.shuffle(shelllines)
+    shelllines = ['#!/bin/sh', 'export OMP_NUM_THREADS=1', 'cd `dirname $0`'] + shelllines
+
+    shellscript = os.path.join(location, 'run.sh')
+    open(shellscript, 'w').write('\n'.join(shelllines))
+    os.chmod(shellscript, stat.S_IXUSR | stat.S_IRUSR)
+    return shellscript
+
+
+default_targets=['python', 'pythran', 'numba', 'hope', 'xtensor']
+
+
+def run(args):
+    if args.targets is None:
+        args.targets = default_targets
+
+    conv = lambda t: globals()[t.capitalize() + 'Extractor']
+    args.targets = [conv(t) for t in args.targets]
+
+    script = run_generator(args.benchmarks,
+                           args.targets,
+                           args.prefix,
+                           args.verbose)
+
+    if args.output:
+        fdout = os.open(args.output, os.O_WRONLY|os.O_CREAT|os.O_TRUNC)
+        os.dup2(fdout, 1)
+    os.execl(script, script)
+
+###############################################################################
+# list command
+
+def list_bench(args):
+    for benchmark in numpy_benchmarks.benchmarks:
+        print(benchmark)
+
+###############################################################################
+# check command
+
+def check_generator(filenames, extractors, prefix, verbose):
+    location = tempfile.mkdtemp(prefix=npb_prefix)
+    with open(os.path.join(location, 'benchit.py'), 'w') as dst:
+        dst.write(benchit)
+
+    shelllines = []
+    for extractor in extractors:
+        e = extractor(location)
+        for filename in filenames:
+            basename = os.path.basename(filename)
+            function, _ = os.path.splitext(basename)
+            tmpfilename = '_'.join([extractor.name, basename])
+            tmpmodule, _ = os.path.splitext(tmpfilename)
+            where = os.path.join(location, tmpfilename)
+            try:
+                setup, run = e(where, filename)
+                e.compile(where, verbose)
+                shelllines.append(
+                    """
+{setup};
+from {module} import {function}
+try:
+    print("{function}", "{ename}...")
+    {run}
+    {ename}_{function}_res = res
+except:
+    {ename}_{function}_res = None
+
+                    """.format(
+                        setup=setup,
+                        module=tmpmodule,
+                        function=function,
+                        run=run,
+                        ename=extractor.name))
+
+            except:
+                shelllines.append('print("{function} {extractor} unsupported")'.format(function=function, extractor=extractor.name))
+                shelllines.append('{ename}_{function}_res = None'.format(function=function, ename=extractor.name))
+
+    # shuffle to hide locality effects
+    random.shuffle(shelllines)
+    shelllines = (['#!' + sys.executable,
+                   'nbp_failure = 0',
+                   'import os, sys',
+                   'os.chdir(os.path.dirname(sys.argv[0]))',
+                  ] + shelllines)
+
+    for extractor in extractors:
+        if extractor.name == "python":
+            continue
+        for filename in filenames:
+            basename = os.path.basename(filename)
+            function, _ = os.path.splitext(basename)
+            shelllines.append(
+"""
+import numpy
+if {ename}_{function}_res is not None and not numpy.allclose(python_{function}_res, {ename}_{function}_res):
+    print('check fail for {ename} {function}')
+    print('ref', python_{function}_res)
+    print('res', {ename}_{function}_res)
+    nbp_failure += 1""".format(ename=extractor.name, function=function))
+
+
+
+    shelllines.append("print('Number of failures: ', nbp_failure)")
+    shelllines.append("sys.exit(nbp_failure)")
+    shellscript = os.path.join(location, 'check.py')
+    open(shellscript, 'w').write('\n'.join(shelllines))
+    os.chmod(shellscript, stat.S_IXUSR | stat.S_IRUSR)
+    return shellscript
+
+def check(args):
+    if args.targets is None:
+        args.targets = default_targets
+    elif "python" not in args.targets:
+        args.targets.append("python")
+
+    global run_generator
+    run_generator = check_generator
+    run(args)
+
+
+###############################################################################
+# clean command
+
+def clean(args):
+    rundir = tempfile.mkdtemp(prefix=npb_prefix)
+    targets = rundir[:rundir.rfind(npb_prefix) + len(npb_prefix)] + '*'
+    print("Cleaning", targets)
+    for d in glob.glob(targets):
+        shutil.rmtree(d)
+
+
+###############################################################################
+# dump command
+
+def read_data(logs, normalize='Python'):
+    averages = dict()
+    testcases = set()
+    compilers = set()
+    for log in logs:
+        for line in log.readlines():
+            try:
+                testcase, compiler, best, average, _ = line.split()
+            except:
+                testcase, compiler, _ = line.split()
+                best = average = 0
+            try:
+                iaverage = int(average)
+            except:
+                iaverage = 0
+            averages.setdefault(compiler, dict())[testcase] = iaverage
+            testcases.add(testcase)
+            compilers.add(compiler)
+
+    compilers = sorted(compilers)
+    testcases = sorted(testcases)
+
+    # eventually normalize against Python
+    if normalize:
+        assert normalize in compilers, "normalize against an existing compiler"
+        for testcase in testcases:
+            ref = float(averages[normalize][testcase])
+            for compiler in compilers:
+                average = averages[compiler][testcase]
+                if average:
+                    averages[compiler][testcase] = ref / average
+
+    return averages, testcases, compilers
+
+
+def dump_rst(averages, testcases, compilers):
+    table = [[''] + compilers]
+    for testcase in testcases:
+        times = [averages[compiler][testcase] for compiler in compilers]
+        mtime = min([time for time in times if time] or [0.])
+        ftimes = [(str(time) if time != mtime else '*{}*'.format(time))
+                  for time in times]
+        table.append([testcase] + ftimes)
+
+    cols = zip(*table)
+    col_widths = [max(len(value) for value in col) for col in cols]
+    format = ' '.join(['%%%ds' % width for width in col_widths])
+    for row in table:
+        print(format % tuple(row))
+
+
+def dump_tex(averages, testcases, compilers):
+    table = []
+    for testcase in testcases:
+        times = [averages[compiler][testcase] for compiler in compilers]
+        mtime = min([time for time in times if time] or [0.])
+        ftimes = [(str(time)
+                   if time != mtime
+                   else r'\textbf{{{}}}'.format(time))
+                  for time in times]
+        table.append([testcase.replace('_', r'\_')] + ftimes)
+
+    cols = zip(*table)
+    col_widths = [max(len(value) for value in col) for col in cols]
+    format = ' & '.join(['%%%ds' % width for width in col_widths])
+
+    print(r'\begin{tabular}{|l||' + 'c|' * len(compilers) + '}')
+    print(r'\hline')
+    print(r'&', ' & '.join(compilers), r'\\')
+    print(r'\hline')
+    print(r'\hline')
+    for row in table:
+        print(format % tuple(row), r'\\')
+    print(r'\hline')
+    print(r'\end{tabular}')
+
+
+def dump_plot(averages, testcases, compilers,
+              flavor='png', normalize='Python'):
+    import matplotlib as mpl
+    import matplotlib.pyplot as plt
+    import numpy as np
+
+    colors = 'rgbkymc'
+    assert len(colors) >= len(compilers)
+
+    fig = plt.figure()
+    ax = fig.add_subplot(1, 1, 1)
+
+    ind = np.arange(len(testcases))
+    width = 1. / (2 + len(compilers))
+
+    # fill the bars
+    rects = []
+    for i, compiler in enumerate(compilers):
+        try:
+            bar = ax.bar(ind + i * width,
+                         [averages[compiler][testcase]
+                          for testcase in testcases],
+                         width,
+                         color=colors[i],
+                         log=True,
+                         )
+            rects.append(bar)
+        except ValueError:
+            pass
+
+    # the bar captions
+    ax.set_xticks(ind+width)
+    xtickNames = ax.set_xticklabels(testcases)
+    plt.setp(xtickNames, rotation=45, fontsize=10)
+
+    # the legends
+    ax.legend([rect[0] for rect in rects],
+              compilers,
+              ncol=2,
+              prop={'size': 10}
+              )
+    if normalize:
+        ax.set_ylabel(u"Speedup with respect to " + normalize)
+    else:
+        ax.set_ylabel(u"Average execution time (µs)")
+
+    # plt.show()
+    if len(testcases) == 1:
+        basename = testcases[0]
+    else:
+        basename = 'benchmarks'
+    fullname = basename + '.' + flavor
+    plt.tight_layout()
+    plt.savefig(fullname)
+    print(fullname, 'generated')
+
+def format(args):
+    options = {'normalize': args.normalize}
+    averages, testcases, compilers = read_data(args.logs, **options)
+
+    if args.split:
+        def dumper(handler, **kwargs):
+            for testcase in testcases:
+                handler({c: {testcase: averages[c][testcase]}
+                         for c in compilers},
+                        [testcase],
+                        compilers,
+                        **kwargs)
+    else:
+        def dumper(handler, **kwargs):
+            handler(averages, testcases, compilers, **kwargs)
+    if args.type == 'rst':
+        dumper(dump_rst)
+    elif args.type == 'tex':
+        dumper(dump_tex)
+    else:
+        dumper(dump_plot, flavor=args.type, normalize=args.normalize)
+
+
+
+###############################################################################
+# main
+
+def main():
+    import glob
+    import argparse
+
+    parser = argparse.ArgumentParser(prog=__name__,
+                                     description='run synthetic numpy benchmarks',
+                                     epilog="It's a megablast!")
+
+    subparser = parser.add_subparsers()
+    clean_parser = subparser.add_parser("clean",
+                                        help="clean previous bench")
+    clean_parser.set_defaults(func=clean)
+
+    format_parser = subparser.add_parser("format",
+                                         help="format the output of a bench")
+    format_parser.add_argument("logs", help="log file to format", nargs='+',
+                               type=argparse.FileType('r'))
+    format_parser.add_argument('-t', '--type', default='rst',
+                        help='output format [{}] (default=rst)'.format(
+                            ", ".join(("rst",
+                                       "tex",
+                                       "eps",
+                                       "pdf",
+                                       "pgf",
+                                       "png",
+                                       "ps",
+                                       "raw",
+                                       "rgba",
+                                       "svg",
+                                       "svgz"))))
+    format_parser.add_argument('--logscale', action='store_true',
+                        help='use logarithmic scale (default=False)')
+    format_parser.add_argument('--normalize', type=str, default="",
+                        help='normalize against given result (default="")')
+    format_parser.add_argument('--split', action='store_true',
+                        help='split output in multiple parts')
+    format_parser.set_defaults(func=format)
+
+    run_parser = subparser.add_parser("run",
+                                      help="run a set of bench")
+    run_parser.add_argument('benchmarks', nargs='*',
+                        help='benchmark to run, default is benchmarks/*',
+                        default=numpy_benchmarks.benchmarks)
+    run_parser.add_argument('-t', action='append', dest='targets', metavar='TARGET',
+                        help='target compilers to use, default is %s' % ', '.join(default_targets))
+    run_parser.add_argument('-v', action='store_true', dest='verbose',
+                            help='enable verbose output')
+    run_parser.add_argument('-p', dest='prefix', default='',
+                            help='force target prefix')
+    run_parser.add_argument('-o', dest='output',
+                            help='output path')
+    run_parser.set_defaults(func=run)
+
+    list_parser = subparser.add_parser("list",
+                                      help="list available benchmarks")
+    list_parser.set_defaults(func=list_bench)
+
+    check_parser = subparser.add_parser("check",
+                                      help="check a set of bench")
+    check_parser.add_argument('benchmarks', nargs='*',
+                              help='benchmark to check, default is benchmarks/*',
+                              default=numpy_benchmarks.benchmarks)
+    check_parser.add_argument('-t', action='append', dest='targets', metavar='TARGET',
+                              help='target compilers to use, default is %s' % ', '.join(default_targets))
+    check_parser.add_argument('-v', action='store_true', dest='verbose',
+                              help='enable verbose output')
+    check_parser.add_argument('-o', dest='output',
+                            help='output path')
+    check_parser.set_defaults(func=check)
+
+    args = parser.parse_args(sys.argv[1:])
+
+    if getattr(args, 'func', None) is None:
+        parser.print_help()
+        sys.exit(1)
+
+    args.func(args)
+
+###############################################################################
+# benchit script
+
+benchit = """
+
+'''
+An adaptation from timeit that outputs some extra statistical informations
+'''
+
+from timeit import default_timer, default_repeat, Timer
+import numpy
+import sys
+import time
+
+
+def main(args=None):
+    '''Main program, used when run as a script.
+
+    The optional argument specifies the command line to be parsed,
+    defaulting to sys.argv[1:].
+
+    The return value is an exit code to be passed to sys.exit(); it
+    may be None to indicate success.
+
+    When an exception happens during timing, a traceback is printed to
+    stderr and the return value is 1.  Exceptions at other times
+    (including the template compilation) are not caught.
+    '''
+    if not args:
+        args = sys.argv[1:]
+    import getopt
+    try:
+        opts, args = getopt.getopt(args, 'n:s:r:tcvh',
+                                   ['number=', 'setup=', 'repeat=',
+                                    'time', 'clock', 'verbose', 'help'])
+    except getopt.error as err:
+        print(err)
+        print("use -h/--help for command line help")
+        return 2
+    timer = default_timer
+    stmt = "\\n".join(args) or "pass"
+    number = 0  # auto-determine
+    setup = []
+    repeat = default_repeat
+    verbose = 0
+    precision = 3
+    for o, a in opts:
+        if o in ("-n", "--number"):
+            number = int(a)
+        if o in ("-s", "--setup"):
+            setup.append(a)
+        if o in ("-r", "--repeat"):
+            repeat = int(a)
+            if repeat <= 0:
+                repeat = 1
+        if o in ("-t", "--time"):
+            timer = time.time
+        if o in ("-c", "--clock"):
+            timer = time.clock
+        if o in ("-v", "--verbose"):
+            if verbose:
+                precision += 1
+            verbose += 1
+        if o in ("-h", "--help"):
+            print(__doc__)
+            return 0
+    setup = "\\n".join(setup) or "pass"
+    # Include the current directory, so that local imports work (sys.path
+    # contains the directory of this script, rather than the current
+    # directory)
+    import os
+    sys.path.insert(0, os.curdir)
+    t = Timer(stmt, setup, timer)
+    if number == 0:
+        # determine number so that 0.2 <= total time < 2.0
+        for i in range(1, 10):
+            number = 10**i
+            try:
+                x = t.timeit(number)
+            except:
+                t.print_exc()
+                return 1
+            if verbose:
+                print("%d loops -> %.*g secs" % (number, precision, x))
+            if x >= 0.2:
+                break
+    try:
+        r = t.repeat(repeat, number)
+    except:
+        t.print_exc()
+        return 1
+    if verbose:
+        print("raw times:", " ".join(["%.*g" % (precision, x) for x in r]))
+    r = [int(x * 1e6 / number) for x in r]
+    best = min(r)
+    average = int(numpy.average(r))
+    std = int(numpy.std(r))
+
+    print(best, average, std)
+
+
+if __name__ == "__main__":
+    sys.exit(main())
+"""
+
+if __name__ == '__main__':
+    main()

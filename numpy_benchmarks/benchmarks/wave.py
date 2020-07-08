@@ -51,4 +51,4 @@ def wave(PARTICLE_COUNT):
     f = 15
     plunk_pos = count // 2
     physics( masspoints, 1./ (SUBDIVISION * FRAMERATE), f, plunk_pos)
-    return masspoints[0, count // 2]
+    return masspoints

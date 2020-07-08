@@ -1,0 +1,4 @@
+include LICENSE
+include numpy_benchmarks/benchmarks/*.py
+include numpy_benchmarks/benchmarks/*.cpp
+
