@@ -19,12 +19,12 @@ class my_build_py(build_py):
         shutil.rmtree(target, True)
         shutil.copytree(pkg, target)
 
-xtl_version = '0.6.13'
-xsimd_version = '7.4.6'
-xtensor_version = '0.21.4'
-pybind11_version = '2.4.3'
+xtl_version = '0.6.18'
+xsimd_version = '7.4.8'
+xtensor_version = '0.21.5'
+pybind11_version = '2.5.0'
 xtensor_python_version = '0.24.1'
-xtensor_blas_version = '0.17.1'
+xtensor_blas_version = '0.17.2'
 
 class my_install(install):
 
