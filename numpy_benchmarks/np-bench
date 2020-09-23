@@ -416,7 +416,7 @@ def dump_plot(averages, testcases, compilers,
     import matplotlib.pyplot as plt
     import numpy as np
 
-    colors = 'rgbkymc'
+    colors = ['C{}'.format(i) for i in range(10)]
     assert len(colors) >= len(compilers)
 
     fig = plt.figure()
