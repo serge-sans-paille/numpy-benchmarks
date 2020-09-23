@@ -1,4 +1,4 @@
-#!/home/sguelton/.venvs/tmp/bin/python
+#!/usr/bin/env python
 import re
 import sys
 import tempfile
@@ -411,7 +411,7 @@ def dump_tex(averages, testcases, compilers):
 
 
 def dump_plot(averages, testcases, compilers,
-              flavor='png', normalize='Python'):
+              flavor='png', normalize='Python', logscale=False):
     import matplotlib as mpl
     import matplotlib.pyplot as plt
     import numpy as np
@@ -434,7 +434,7 @@ def dump_plot(averages, testcases, compilers,
                           for testcase in testcases],
                          width,
                          color=colors[i],
-                         log=True,
+                         log=logscale,
                          )
             rects.append(bar)
         except ValueError:
@@ -443,7 +443,7 @@ def dump_plot(averages, testcases, compilers,
     # the bar captions
     ax.set_xticks(ind+width)
     xtickNames = ax.set_xticklabels(testcases)
-    plt.setp(xtickNames, rotation=45, fontsize=10)
+    plt.setp(xtickNames, rotation=90, fontsize=10)
 
     # the legends
     ax.legend([rect[0] for rect in rects],
@@ -486,7 +486,8 @@ def format(args):
     elif args.type == 'tex':
         dumper(dump_tex)
     else:
-        dumper(dump_plot, flavor=args.type, normalize=args.normalize)
+        dumper(dump_plot, flavor=args.type, normalize=args.normalize,
+               logscale=args.logscale)
 
 
 
