@@ -10,22 +10,23 @@ Usage
 
 First setup the benchmarking environment::
 
-    > ./np-bench setup
+    > pip install .
+    > np-bench setup
 
 Then run the whole benchmark suite::
 
-    > ./np-bench run
+    > np-bench run
 
 To run a specific set of benchmarks on a specific set of compilers, use the
 ad hoc arguments , as in::
 
-    > ./np-bench run -tnumba -tpythran benchmarks/harris.py benchmarks/evolve.py
+    > np-bench run -tnumba -tpythran benchmarks/harris.py benchmarks/evolve.py
 
-It is possible to post-process the raw output of ``./np-bench run``, for
+It is possible to post-process the raw output of ``np-bench run``, for
 instance to plot the result as ``png``::
 
-    > ./np-bench run -tpython -tpythran > run.log
-    > ./np-bench format  -tpng run.log
+    > np-bench run -tpython -tpythran > run.log
+    > np-bench format  -tpng run.log
 
 Install
 =======
