@@ -175,6 +175,7 @@ def run_generator(filenames, extractors, prefix, verbose):
     shelllines = []
     for extractor in extractors:
         e = extractor(location)
+        print(e)
         for filename in filenames:
             basename = os.path.basename(filename)
             function, _ = os.path.splitext(basename)
@@ -194,7 +195,8 @@ def run_generator(filenames, extractors, prefix, verbose):
                         function=function,
                         run=run,
                         extractor=prefix+extractor.name))
-            except:
+            except Exception as e:
+                print(e)
                 shelllines.append('echo "{function} {extractor} unsupported"'.format(function=function, extractor=prefix+extractor.name))
 
     # shuffle to hide locality effects
@@ -272,7 +274,7 @@ except:
                         run=run,
                         ename=extractor.name))
 
-            except:
+            except Exception as e:
                 shelllines.append('print("{function} {extractor} unsupported")'.format(function=function, extractor=extractor.name))
                 shelllines.append('{ename}_{function}_res = None'.format(function=function, ename=extractor.name))
 
@@ -560,6 +562,8 @@ def main():
                               help='target compilers to use, default is %s' % ', '.join(default_targets))
     check_parser.add_argument('-v', action='store_true', dest='verbose',
                               help='enable verbose output')
+    check_parser.add_argument('-p', dest='prefix', default='',
+                              help='force target prefix')
     check_parser.add_argument('-o', dest='output',
                             help='output path')
     check_parser.set_defaults(func=check)
